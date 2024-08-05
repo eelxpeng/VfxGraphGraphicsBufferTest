@@ -1,0 +1,30 @@
+#pragma kernel CSMain
+
+RWStructuredBuffer<float4> megaBuffer;
+RWStructuredBuffer<float2> megaCoordinatesBuffer;
+RWStructuredBuffer<float4> colorBuffer;
+RWStructuredBuffer<float4> depthBuffer;
+RWStructuredBuffer<float2> colorCoordinatesBuffer;
+
+Texture2D<float4> megaTexture;
+uint2 megaResolution;
+uint2 colorResolution;
+uint2 depthResolution;
+
+float2 focalLengthDepth;
+float2 principalPointDepth;
+float2 focalLengthColor;
+float2 principalPointColor;
+float4x4 depthToColorTransform;
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    uint2 uv = id.xy;
+    if (uv.x >= megaResolution.x || uv.y >= megaResolution.y) return;
+
+    // Store the 3D point and the corresponding UV coordinates for sampling the color texture
+    megaBuffer[uv.y * megaResolution.x + uv.x] = megaTexture[uv];
+    megaCoordinatesBuffer[uv.y * megaResolution.x + uv.x] = float2(uv.x, uv.y);
+}
+

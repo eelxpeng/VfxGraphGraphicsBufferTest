@@ -1,0 +1,81 @@
+#pragma kernel CSMain
+
+RWStructuredBuffer<float4> pointCloud;
+RWStructuredBuffer<float4> colorBuffer;
+RWStructuredBuffer<float4> depthBuffer;
+RWStructuredBuffer<float4> depthLowBuffer;
+RWStructuredBuffer<float2> colorCoordinatesBuffer;
+RWStructuredBuffer<float2> depthCoordinatesBuffer;
+RWStructuredBuffer<float2> depthImageBuffer;
+
+Texture2D<float4> depthTexture;
+uint2 megaResolution;
+uint2 colorResolution;
+uint2 depthResolution;
+
+float2 focalLengthDepth;
+float2 principalPointDepth;
+float2 focalLengthColor;
+float2 principalPointColor;
+float4x4 depthToColorTransform;
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    uint2 uv = id.xy;
+    if (uv.x >= depthResolution.x || uv.y >= depthResolution.y) return;
+
+    uint2 uv_depth_low;
+    uint2 uv_depth_high;
+
+    if (uv.y < depthResolution.y / 2)
+    {
+        uv_depth_low = uint2(uv.x + colorResolution.x / 2, uv.y + depthResolution.y / 2);
+        uv_depth_high = uint2(uv.x + colorResolution.x /2, uv.y);
+    } else
+    {
+        uv_depth_low = uint2(uv.x, uv.y);
+        uv_depth_high = uint2(uv.x, uv.y - depthResolution.y /2);
+    }
+    float low_depth = depthTexture[uv_depth_low].b;
+    float high_depth = depthTexture[uv_depth_high].b;
+
+    float low_depth_transformed = low_depth * 255;
+    float high_depth_transformed = high_depth * 255;
+
+    float depth = low_depth_transformed + high_depth_transformed * 256;
+
+    // float depthOffset = 89.7f;
+    // float depthScale = 19.1f;
+    float depthOffset = 0.0f;
+    float depthScale = 1.0f;
+    // Convert pixel coordinates to 3D coordinates in depth camera space
+    // to determine whether we need to convert (u,v) to (u, depthResolution.y - v - 1) or not
+    // trying pixel space where (0,0) is top left
+    // uint2 pixel_xy = uint2(uv.x, depthResolution.y - uv.y - 1);
+    uint2 pixel_xy = uint2(uv.x, uv.y);
+    float z = depth * depthScale;
+    float x = z == 0 ? 0 : (pixel_xy.x - principalPointDepth.x) * (z + depthOffset) / focalLengthDepth.x;
+    float y = z == 0 ? 0 : (pixel_xy.y - principalPointDepth.y) * (z + depthOffset) / focalLengthDepth.y;
+
+    // Transform to color camera space
+    float4 pointInDepthSpace = float4(x, y, z, 1.0);
+    float4 pointInColorSpace = mul(depthToColorTransform, pointInDepthSpace);
+
+    // Project to 2D coordinates in the color image
+    float u = z == 0 ? 0 : (pointInColorSpace.x / pointInColorSpace.z) * focalLengthColor.x + principalPointColor.x;
+    float v = z == 0 ? 0 : (pointInColorSpace.y / pointInColorSpace.z) * focalLengthColor.y + principalPointColor.y;
+    uint2 uv_color = clamp(uint2(u, v), int2(0, 0), int2(colorResolution.x - 1, colorResolution.y - 1));
+    // convert to pixel space where (0,0) is bottom left
+    // uv_color.y = colorResolution.y - uv_color.y - 1;
+
+    // Store the 3D point and the corresponding UV coordinates for sampling the color texture
+    pointCloud[uv.y * depthResolution.x + uv.x] = float4(x,y,z,0) / 1000.0f;
+    colorCoordinatesBuffer[uv.y * depthResolution.x + uv.x] = float2(u, v);
+    colorBuffer[uv.y * depthResolution.x + uv.x] = depthTexture[uv_color];
+    depthBuffer[uv.y * depthResolution.x + uv.x] = depthTexture[uv_depth_high];
+    depthLowBuffer[uv.y * depthResolution.x + uv.x] = depthTexture[uv_depth_low];
+    depthCoordinatesBuffer[uv.y * depthResolution.x + uv.x] = float2(uv_depth_high.x, uv_depth_high.y);
+    depthImageBuffer[uv.y * depthResolution.x + uv.x] = float2(uv.x, uv.y);
+}
+
