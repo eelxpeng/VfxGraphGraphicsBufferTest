@@ -9,7 +9,7 @@
     }
   ],
   "dependencies": {
-    "com.unity.render-pipelines.high-definition": "12.0.0",
+    "com.unity.render-pipelines.high-definition": "12.1.7",
     "jp.keijiro.vfxgraphassets": "1.0.5",
     "com.unity.modules.jsonserialize": "1.0.0"
   }
