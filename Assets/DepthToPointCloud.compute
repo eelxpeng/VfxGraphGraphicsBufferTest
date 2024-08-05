@@ -35,8 +35,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     if (uv.y < depthResolution.y / 2)
     {
-        uv_depth_low = uint2(uv.x, uv.y + depthResolution.y / 2);
-        uv_depth_high = uint2(uv.x, uv.y);
+        uv_depth_low = uint2(uv.x + colorResolution.x / 2, uv.y + depthResolution.y / 2);
+        uv_depth_high = uint2(uv.x + colorResolution.x / 2, uv.y);
     }
     else
     {
@@ -50,6 +50,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float high_depth_transformed = high_depth * 255;
 
     float depth = low_depth_transformed + high_depth_transformed * 256;
+    //float depth = low_depth_transformed;
+    //float depth = high_depth_transformed * 256;
 
     // Store the transformed values in the buffers
     uint index = uv.y * depthResolution.x + uv.x;
@@ -57,6 +59,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     highDepthTransformedBuffer[index] = high_depth_transformed;
     depthValuesBuffer[index] = depth;
 
+    // Remap depth values
     depth = 1000 + ((depth - 0) * (3000 - 1000) / (4095 - 0));
 
     // float depthOffset = 89.7f;
