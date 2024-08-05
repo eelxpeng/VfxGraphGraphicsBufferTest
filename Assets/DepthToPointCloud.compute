@@ -72,16 +72,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // uint2 pixel_xy = uint2(uv.x, depthResolution.y - uv.y - 1);
     uint2 pixel_xy = uint2(uv.x, uv.y);
     float z = depth * depthScale;
-    float x = z == 0 ? 100000 : (pixel_xy.x - principalPointDepth.x) * (z + depthOffset) / focalLengthDepth.x;
-    float y = z == 0 ? 100000 : (pixel_xy.y - principalPointDepth.y) * (z + depthOffset) / focalLengthDepth.y;
+    float x = z == 1000 ? 100000 : (pixel_xy.x - principalPointDepth.x) * (z + depthOffset) / focalLengthDepth.x;
+    float y = z == 1000 ? 100000 : (pixel_xy.y - principalPointDepth.y) * (z + depthOffset) / focalLengthDepth.y;
 
     // Transform to color camera space
     float4 pointInDepthSpace = float4(x, y, z, 1.0);
     float4 pointInColorSpace = mul(depthToColorTransform, pointInDepthSpace);
 
     // Project to 2D coordinates in the color image
-    float u = z == 0 ? 0 : (pointInColorSpace.x / pointInColorSpace.z) * focalLengthColor.x + principalPointColor.x;
-    float v = z == 0 ? 0 : (pointInColorSpace.y / pointInColorSpace.z) * focalLengthColor.y + principalPointColor.y;
+    float u = z == 1000 ? 100000 : (pointInColorSpace.x / pointInColorSpace.z) * focalLengthColor.x + principalPointColor.x;
+    float v = z == 1000 ? 100000 : (pointInColorSpace.y / pointInColorSpace.z) * focalLengthColor.y + principalPointColor.y;
     uint2 uv_color = uint2(u, v);
     //uint2 uv_color = clamp(uint2(u, v), int2(0, 0), int2(colorResolution.x - 1, colorResolution.y - 1));
     // convert to pixel space where (0,0) is bottom left

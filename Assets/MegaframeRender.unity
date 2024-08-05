@@ -341,7 +341,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   depthToPointCloudShader: {fileID: 7200000, guid: dfdbfefdef77846f083ccd4ce2842cd0, type: 3}
-  megaTexture: {fileID: 2800000, guid: 9f3efa100f788ec46b977a0ab65eda3b, type: 3}
+  megaTexture: {fileID: 2800000, guid: 431cc4339e39c4b24936e540a41ad853, type: 3}
   vfxGraph: {fileID: 1441380430}
 --- !u!1 &2094845398
 GameObject:
