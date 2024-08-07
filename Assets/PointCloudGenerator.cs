@@ -8,6 +8,9 @@ public class PointCloudGenerator : MonoBehaviour
 {
     public ComputeShader depthToPointCloudShader;
     public Texture2D megaTexture;
+    private Texture2D colorTexture;
+    private Texture2D depthTexture;
+
     public VisualEffect vfxGraph;
     private int kernelIndex;
 
@@ -42,6 +45,8 @@ public class PointCloudGenerator : MonoBehaviour
     private float[] lowDepthData;
     private float[] highDepthData;
     private float[] depthData;
+
+    public Material heatmapMaterial;
 
     void Start()
     {
@@ -82,8 +87,8 @@ public class PointCloudGenerator : MonoBehaviour
         Debug.Log($"Texture2D dimension: {megaTexture.width}x{megaTexture.height}");
 
         // Create new textures
-        Texture2D colorTexture = new Texture2D(megaframe_width, color_height);
-        Texture2D depthTexture = new Texture2D(megaframe_width, depth_height);
+        colorTexture = new Texture2D(megaframe_width, color_height, TextureFormat.RGBAFloat, false);
+        depthTexture = new Texture2D(megaframe_width, depth_height, TextureFormat.RGBAFloat, false);
 
         // Copy pixels for the first texture (1280x720)
         Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
@@ -146,7 +151,9 @@ public class PointCloudGenerator : MonoBehaviour
         highDepthBuffer.GetData(highDepthData);
         depthValuesBuffer.GetData(depthData);
 
+        OriginalMap();
         SaveToCSV();
+        CreateHeatmap();
 
         //ReadBackBufferData();
     }
@@ -190,6 +197,26 @@ public class PointCloudGenerator : MonoBehaviour
 
     }
     */
+    private void OriginalMap()
+    {
+        string filename = "Assets/OriginalValues.csv";
+        Color[] pixels = depthTexture.GetPixels();
+        using (StreamWriter writer = new StreamWriter(filename))
+        {
+            for (int y = 0; y < depth_height; y++)
+            {
+                for (int x = 0; x < megaframe_width; x++)
+                {
+                    float original = pixels[y * megaframe_width + x].b * 255;
+                    writer.Write(original.ToString());
+                    if (x < megaframe_width - 1)
+                        writer.Write(",");
+                }
+                writer.WriteLine();
+            }
+        }
+
+    }
 
     void SaveToCSV()
     {
@@ -216,8 +243,40 @@ public class PointCloudGenerator : MonoBehaviour
         }
     }
 
+    private void CreateHeatmap()
+    {
+        Texture2D heatmapTexture = new Texture2D(depth_width, depth_height);
+        float minDepth = Mathf.Min(highDepthData);
+        float maxDepth = Mathf.Max(highDepthData);
+        float depthRange = maxDepth - minDepth;
+        print("Min:" + minDepth);
+        print("Max:" + maxDepth);
+        for (int y = 0; y < depth_height; y++)
+        {
+            for (int x = 0; x < depth_width; x++)
+            {
+                float depthValue = highDepthData[y * depth_width + x];
+                float normalizedDepth = (depthValue - minDepth) / depthRange;
+                Color color = GetHeatmapColor(normalizedDepth);
+                heatmapTexture.SetPixel(x, y, color);
+            }
+        }
+        heatmapTexture.Apply();
 
-    void OnDestroy()
+        GameObject heatmapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        heatmapPlane.transform.localScale = new Vector3(6.4f, 1, 5.76f); // Adjust the scale as needed
+        heatmapPlane.GetComponent<Renderer>().material = heatmapMaterial;
+        heatmapMaterial.mainTexture = heatmapTexture;
+    }
+
+    private Color GetHeatmapColor(float value)
+    {
+        // This function maps a depth value to a color
+        // Adjust the mapping logic as needed
+        return new Color(value, 0f, 1f - value);
+    }
+
+        void OnDestroy()
     {
         pointCloudBuffer.Release();
         colorBuffer.Release();

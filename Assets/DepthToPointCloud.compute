@@ -24,6 +24,9 @@ float2 focalLengthColor;
 float2 principalPointColor;
 float4x4 depthToColorTransform;
 
+// Define the sampler state for texture sampling
+SamplerState samplerState;
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
@@ -33,18 +36,29 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     uint2 uv_depth_low;
     uint2 uv_depth_high;
 
-    if (uv.y < depthResolution.y / 2)
+    if (uv.y < depthResolution.y / 2) // uv.y < 288
     {
-        uv_depth_low = uint2(uv.x + colorResolution.x / 2, uv.y + depthResolution.y / 2);
-        uv_depth_high = uint2(uv.x + colorResolution.x / 2, uv.y);
+        uv_depth_low = uint2(uv.x + colorResolution.x / 2, uv.y + depthResolution.y / 2); // x + 640, y + 288
+        uv_depth_high = uint2(uv.x + colorResolution.x / 2, uv.y); // x + 640, y
     }
     else
     {
         uv_depth_low = uint2(uv.x, uv.y);
         uv_depth_high = uint2(uv.x, uv.y - depthResolution.y / 2);
     }
-    float low_depth = depthTexture[uv_depth_low].b;
-    float high_depth = depthTexture[uv_depth_high].b;
+
+    float2 uv_low = uv_depth_low / uint2(depthResolution.x, depthResolution.y);
+    float2 uv_high = uv_depth_high / uint2(depthResolution.x, depthResolution.y);
+
+    //float low_depth = depthTexture[uv_depth_low].b;
+    //float high_depth = depthTexture[uv_depth_high].b;
+    float4 color_low = depthTexture.Load(int3(uv_depth_low, 0));
+    float4 color_high = depthTexture.Load(int3(uv_depth_high, 0));
+    //float4 color_low = depthTexture.Sample(samplerState, uv_low);
+    //float4 color_high = depthTexture.Sample(samplerState, uv_high);
+    float low_depth = color_low.b;
+    float high_depth = color_high.b;
+
 
     float low_depth_transformed = low_depth * 255;
     float high_depth_transformed = high_depth * 255;
@@ -54,9 +68,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     //float depth = high_depth_transformed * 256;
 
     // Store the transformed values in the buffers
-    uint index = uv.y * depthResolution.x + uv.x;
+    uint index = uv.y * depthResolution.x + uv.x; // y * 640 + x
     lowDepthTransformedBuffer[index] = low_depth_transformed;
-    highDepthTransformedBuffer[index] = high_depth_transformed;
+    highDepthTransformedBuffer[index] = high_depth_transformed * 256;
     depthValuesBuffer[index] = depth;
 
     // Remap depth values
