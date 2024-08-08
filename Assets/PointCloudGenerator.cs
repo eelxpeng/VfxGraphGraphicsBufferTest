@@ -3,10 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.VFX;
 using System.IO;
+using UnityEngine.Video;
 
 public class PointCloudGenerator : MonoBehaviour
 {
     public ComputeShader depthToPointCloudShader;
+    public VideoPlayer videoPlayer; // Add a VideoPlayer component in the inspector
+    private RenderTexture videoRenderTexture;
+
     public Texture2D megaTexture;
     private Texture2D colorTexture;
     private Texture2D depthTexture;
@@ -86,10 +90,17 @@ public class PointCloudGenerator : MonoBehaviour
 
         Debug.Log($"Texture2D dimension: {megaTexture.width}x{megaTexture.height}");
 
+        // Initialize VideoPlayer and RenderTexture
+        videoRenderTexture = new RenderTexture(megaframe_width, megaframe_height, 0);
+        videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+        videoPlayer.targetTexture = videoRenderTexture;
+        videoPlayer.Play();
+
         // Create new textures
         colorTexture = new Texture2D(megaframe_width, color_height, TextureFormat.RGBAFloat, false);
         depthTexture = new Texture2D(megaframe_width, depth_height, TextureFormat.RGBAFloat, false);
 
+        /*
         // Copy pixels for the first texture (1280x720)
         Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
         colorTexture.SetPixels(pixels1);
@@ -99,6 +110,7 @@ public class PointCloudGenerator : MonoBehaviour
         Color[] pixels2 = megaTexture.GetPixels(0, 0, megaframe_width, depth_height);
         depthTexture.SetPixels(pixels2);
         depthTexture.Apply();
+        */
 
         // Initialize depth data buffers
         lowDepthBuffer = new ComputeBuffer(depth_width * depth_height, sizeof(float));
@@ -142,6 +154,7 @@ public class PointCloudGenerator : MonoBehaviour
         depthToPointCloudShader.SetFloats("principalPointColor", new float[] { principalPointColorX, principalPointColorY });
         depthToPointCloudShader.SetMatrix("depthToColorTransform", depthToColorTransform);
 
+        /*
         depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
 
         vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
@@ -154,49 +167,42 @@ public class PointCloudGenerator : MonoBehaviour
         OriginalMap();
         SaveToCSV();
         CreateHeatmap();
-
-        //ReadBackBufferData();
+        */
     }
-    /*
-    void ReadBackBufferData()
+
+    void Update()
     {
-        float[] pointCloudData = new float[depth_width * depth_height * 4];
-        pointCloudBuffer.GetData(pointCloudData);
-
-        // Log a few points to the console for debugging
-        for (int i = 0; i < 5000; i = i + 500)
+        int count = 0;
+        if (videoPlayer.isPlaying)
         {
-            Debug.Log($"Point {i}: X={pointCloudData[i * 4]}, Y={pointCloudData[i * 4 + 1]}, Z={pointCloudData[i * 4 + 2]}, W={pointCloudData[i * 4 + 3]}");
+            count++;
+            Debug.Log("Video player is called:" + count);
+
+            // Update textures from video
+            RenderTexture.active = videoRenderTexture;
+            colorTexture.ReadPixels(new Rect(0, depth_height, megaframe_width, megaframe_height - depth_height), 0, 0);
+            colorTexture.Apply();
+            depthTexture.ReadPixels(new Rect(0, 0, megaframe_width, depth_height), 0, 0);
+            depthTexture.Apply();
+            RenderTexture.active = null;
+
+            // Dispatch the compute shader
+            depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
+
+            // Set buffers for VFX graph
+            vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
+            vfxGraph.SetGraphicsBuffer("ColorBuffer", colorBuffer);
+
+            lowDepthBuffer.GetData(lowDepthData);
+            highDepthBuffer.GetData(highDepthData);
+            depthValuesBuffer.GetData(depthData);
+
+            OriginalMap();
+            SaveToCSV();
+            CreateHeatmap();
         }
-
-        float[] depthBufferData = new float[depth_width * depth_height * 4];
-        depthBuffer.GetData(depthBufferData);
-        float[] depthLowBufferData = new float[depth_width * depth_height * 4];
-        depthLowBuffer.GetData(depthLowBufferData);
-        float[] depthCoordinatesBufferData = new float[depth_width * depth_height * 2];
-        depthCoordinatesBuffer.GetData(depthCoordinatesBufferData);
-        float[] depthImageBufferData = new float[depth_width * depth_height * 2];
-        depthImageBuffer.GetData(depthImageBufferData);
-        // Log a few points to the console for debugging
-        for (int i = 0; i < 5000; i = i + 500)
-        {
-            Debug.Log($"Depth buffer {i} ({depthImageBufferData[i*2]}, {depthImageBufferData[i*2+1]}) => High: ({depthCoordinatesBufferData[i*2]}, {depthCoordinatesBufferData[i*2+1]}), R={depthBufferData[i * 4]}, G={depthBufferData[i * 4 + 1]}, B={depthBufferData[i * 4 + 2]}, A={depthBufferData[i * 4 + 3]}, Low: R={depthLowBufferData[i * 4]}, G={depthLowBufferData[i * 4 + 1]}, B={depthLowBufferData[i * 4 + 2]}, A={depthLowBufferData[i * 4 + 3]}");
-        }
-
-        float[] colorBufferData = new float[depth_width * depth_height * 4];
-        colorBuffer.GetData(colorBufferData);
-        float[] colorCoordinateData = new float[depth_width * depth_height * 2];
-        colorCoordinatesBuffer.GetData(colorCoordinateData);
-
-        // Log a few points to the console for debugging
-        for (int i = 0; i < 5000; i = i + 500)
-        {
-            Debug.Log($"colorBuffer {i}: ({colorCoordinateData[i*2]}, {colorCoordinateData[i*2+1]}) R={colorBufferData[i * 4]}, G={colorBufferData[i * 4 + 1]}, B={colorBufferData[i * 4 + 2]}, A={colorBufferData[i * 4 + 3]}");
-        }
-
-
     }
-    */
+
     private void OriginalMap()
     {
         string filename = "Assets/OriginalValues.csv";
