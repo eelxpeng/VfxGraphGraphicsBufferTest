@@ -50,6 +50,7 @@ public class PointCloudGenerator : MonoBehaviour
     private float[] highDepthData;
     private float[] depthData;
 
+    private GameObject heatmapPlane;
     public Material heatmapMaterial;
 
     void Start()
@@ -99,6 +100,8 @@ public class PointCloudGenerator : MonoBehaviour
         // Create new textures
         colorTexture = new Texture2D(megaframe_width, color_height, TextureFormat.RGBAFloat, false);
         depthTexture = new Texture2D(megaframe_width, depth_height, TextureFormat.RGBAFloat, false);
+
+        heatmapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
 
         /*
         // Copy pixels for the first texture (1280x720)
@@ -169,18 +172,28 @@ public class PointCloudGenerator : MonoBehaviour
         CreateHeatmap();
         */
     }
-
+    int count = 0;
     void Update()
     {
-        int count = 0;
         if (videoPlayer.isPlaying)
         {
             count++;
             Debug.Log("Video player is called:" + count);
 
             // Update textures from video
+            /*
+            // Copy pixels for the first texture (1280x720)
+            Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
+            colorTexture.SetPixels(pixels1);
+            colorTexture.Apply();
+
+            // Copy pixels for the second texture (1280x576)
+            Color[] pixels2 = megaTexture.GetPixels(0, 0, megaframe_width, depth_height);
+            depthTexture.SetPixels(pixels2);
+            depthTexture.Apply();
+            */
             RenderTexture.active = videoRenderTexture;
-            colorTexture.ReadPixels(new Rect(0, depth_height, megaframe_width, megaframe_height - depth_height), 0, 0);
+            colorTexture.ReadPixels(new Rect(0, depth_height, megaframe_width, megaframe_height - depth_height), 0, depth_height);
             colorTexture.Apply();
             depthTexture.ReadPixels(new Rect(0, 0, megaframe_width, depth_height), 0, 0);
             depthTexture.Apply();
@@ -199,7 +212,7 @@ public class PointCloudGenerator : MonoBehaviour
 
             OriginalMap();
             SaveToCSV();
-            CreateHeatmap();
+            UpdateHeatmap();
         }
     }
 
@@ -249,7 +262,7 @@ public class PointCloudGenerator : MonoBehaviour
         }
     }
 
-    private void CreateHeatmap()
+    private void UpdateHeatmap()
     {
         Texture2D heatmapTexture = new Texture2D(depth_width, depth_height);
         float minDepth = Mathf.Min(highDepthData);
@@ -269,7 +282,6 @@ public class PointCloudGenerator : MonoBehaviour
         }
         heatmapTexture.Apply();
 
-        GameObject heatmapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
         heatmapPlane.transform.localScale = new Vector3(6.4f, 1, 5.76f); // Adjust the scale as needed
         heatmapPlane.GetComponent<Renderer>().material = heatmapMaterial;
         heatmapMaterial.mainTexture = heatmapTexture;
