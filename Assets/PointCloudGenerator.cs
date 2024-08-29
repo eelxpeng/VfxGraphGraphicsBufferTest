@@ -53,6 +53,8 @@ public class PointCloudGenerator : MonoBehaviour
     private GameObject heatmapPlane;
     public Material heatmapMaterial;
 
+    public string outputFolder = "Assets/CapturedFrames";
+
     void Start()
     {
         vfxGraph = GetComponent<VisualEffect>();
@@ -102,7 +104,6 @@ public class PointCloudGenerator : MonoBehaviour
         depthTexture = new Texture2D(megaframe_width, depth_height, TextureFormat.RGBAFloat, false);
 
         heatmapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
-
         /*
         // Copy pixels for the first texture (1280x720)
         Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
@@ -114,7 +115,6 @@ public class PointCloudGenerator : MonoBehaviour
         depthTexture.SetPixels(pixels2);
         depthTexture.Apply();
         */
-
         // Initialize depth data buffers
         lowDepthBuffer = new ComputeBuffer(depth_width * depth_height, sizeof(float));
         highDepthBuffer = new ComputeBuffer(depth_width * depth_height, sizeof(float));
@@ -157,7 +157,7 @@ public class PointCloudGenerator : MonoBehaviour
         depthToPointCloudShader.SetFloats("principalPointColor", new float[] { principalPointColorX, principalPointColorY });
         depthToPointCloudShader.SetMatrix("depthToColorTransform", depthToColorTransform);
 
-        /*
+        
         depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
 
         vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
@@ -167,53 +167,70 @@ public class PointCloudGenerator : MonoBehaviour
         highDepthBuffer.GetData(highDepthData);
         depthValuesBuffer.GetData(depthData);
 
-        OriginalMap();
-        SaveToCSV();
-        CreateHeatmap();
-        */
+        //OriginalMap();
+        //SaveToCSV();
+        //CreateHeatmap();
+        
     }
     int count = 0;
     void Update()
     {
-        if (videoPlayer.isPlaying)
-        {
-            count++;
-            Debug.Log("Video player is called:" + count);
 
-            // Update textures from video
-            /*
-            // Copy pixels for the first texture (1280x720)
-            Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
-            colorTexture.SetPixels(pixels1);
-            colorTexture.Apply();
+        count++;
+        Debug.Log("Video player is called:" + count);
 
-            // Copy pixels for the second texture (1280x576)
-            Color[] pixels2 = megaTexture.GetPixels(0, 0, megaframe_width, depth_height);
-            depthTexture.SetPixels(pixels2);
-            depthTexture.Apply();
-            */
-            RenderTexture.active = videoRenderTexture;
-            colorTexture.ReadPixels(new Rect(0, depth_height, megaframe_width, megaframe_height - depth_height), 0, depth_height);
-            colorTexture.Apply();
-            depthTexture.ReadPixels(new Rect(0, 0, megaframe_width, depth_height), 0, 0);
-            depthTexture.Apply();
-            RenderTexture.active = null;
+        // Update textures from video
+        
+        // Copy pixels for the first texture (1280x720)
+        /*
+        megaTexture = videoRenderTexture;
+        Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
+        colorTexture.SetPixels(pixels1);
+        colorTexture.Apply();
 
-            // Dispatch the compute shader
-            depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
+        // Copy pixels for the second texture (1280x576)
+        Color[] pixels2 = megaTexture.GetPixels(0, 0, megaframe_width, depth_height);
+        depthTexture.SetPixels(pixels2);
+        depthTexture.Apply();
 
-            // Set buffers for VFX graph
-            vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
-            vfxGraph.SetGraphicsBuffer("ColorBuffer", colorBuffer);
+        Debug.Log("Saving png files.");
+        byte[] bytes = depthTexture.EncodeToPNG();
+        string filename = "Assets/CapturedFrames/2.png";
+        File.WriteAllBytes(filename, bytes);
+        
+        */
 
-            lowDepthBuffer.GetData(lowDepthData);
-            highDepthBuffer.GetData(highDepthData);
-            depthValuesBuffer.GetData(depthData);
+        
+        RenderTexture.active = videoRenderTexture;
+        colorTexture.ReadPixels(new Rect(0, depth_height, megaframe_width, megaframe_height - depth_height), 0, 0);
+        colorTexture.Apply();
+        depthTexture.ReadPixels(new Rect(0, 0, megaframe_width, depth_height), 0, 0);
+        depthTexture.Apply();
+        RenderTexture.active = null;
 
-            OriginalMap();
-            SaveToCSV();
-            UpdateHeatmap();
-        }
+        Debug.Log("Saving png files:" + count.ToString());
+        byte[] bytes = colorTexture.EncodeToPNG();
+        string filename = "Assets/CapturedFrames/" + count.ToString() + ".png";
+        File.WriteAllBytes(filename, bytes);
+        
+        
+        depthToPointCloudShader.SetTexture(kernelIndex, "colorTexture", colorTexture);
+        depthToPointCloudShader.SetTexture(kernelIndex, "depthTexture", depthTexture);
+        // Dispatch the compute shader
+        depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
+
+        // Set buffers for VFX graph
+        vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
+        vfxGraph.SetGraphicsBuffer("ColorBuffer", colorBuffer);
+
+        lowDepthBuffer.GetData(lowDepthData);
+        highDepthBuffer.GetData(highDepthData);
+        depthValuesBuffer.GetData(depthData);
+
+        //OriginalMap();
+        SaveToCSV();
+        //UpdateHeatmap();
+
     }
 
     private void OriginalMap()
@@ -294,7 +311,7 @@ public class PointCloudGenerator : MonoBehaviour
         return new Color(value, 0f, 1f - value);
     }
 
-        void OnDestroy()
+    void OnDestroy()
     {
         pointCloudBuffer.Release();
         colorBuffer.Release();
