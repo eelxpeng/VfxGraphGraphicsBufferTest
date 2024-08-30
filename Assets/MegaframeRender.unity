@@ -352,7 +352,6 @@ GameObject:
   - component: {fileID: 1441380430}
   - component: {fileID: 1441380429}
   - component: {fileID: 1441380432}
-  - component: {fileID: 1441380433}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -465,17 +464,34 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   depthToPointCloudShader: {fileID: 7200000, guid: dfdbfefdef77846f083ccd4ce2842cd0, type: 3}
-  videoPlayer: {fileID: 1441380433}
-  megaTexture: {fileID: 2800000, guid: 9f3efa100f788ec46b977a0ab65eda3b, type: 3}
+  videoRenderTexture: {fileID: 8400000, guid: 017c8c4a01d12444da78ab775312d0bf, type: 2}
   vfxGraph: {fileID: 1441380430}
   heatmapMaterial: {fileID: 2100000, guid: d447869ca49ac424cae93a4ea4eaacd6, type: 2}
---- !u!328 &1441380433
+  outputFolder: Assets/CapturedFrames
+--- !u!1 &1558222198
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1558222200}
+  - component: {fileID: 1558222199}
+  m_Layer: 0
+  m_Name: Video Player
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!328 &1558222199
 VideoPlayer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1441380427}
+  m_GameObject: {fileID: 1558222198}
   m_Enabled: 1
   m_VideoClip: {fileID: 32900000, guid: c80cd16723865f7478f05b079c12dff7, type: 3}
   m_TargetCameraAlpha: 1
@@ -498,10 +514,25 @@ VideoPlayer:
   m_ControlledAudioTrackCount: 0
   m_PlayOnAwake: 1
   m_SkipOnDrop: 1
-  m_Looping: 1
+  m_Looping: 0
   m_WaitForFirstFrame: 1
   m_FrameReadyEventEnabled: 0
   m_VideoShaders: []
+--- !u!4 &1558222200
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1558222198}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.163037, y: -0.029360294, z: 16.219366}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 3
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2094845398
 GameObject:
   m_ObjectHideFlags: 0

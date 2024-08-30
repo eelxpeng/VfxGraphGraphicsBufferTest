@@ -8,10 +8,10 @@ using UnityEngine.Video;
 public class PointCloudGenerator : MonoBehaviour
 {
     public ComputeShader depthToPointCloudShader;
-    public VideoPlayer videoPlayer; // Add a VideoPlayer component in the inspector
-    private RenderTexture videoRenderTexture;
+    //public VideoPlayer videoPlayer; // Add a VideoPlayer component in the inspector
+    public RenderTexture videoRenderTexture;
 
-    public Texture2D megaTexture;
+    private Texture2D megaTexture;
     private Texture2D colorTexture;
     private Texture2D depthTexture;
 
@@ -91,19 +91,23 @@ public class PointCloudGenerator : MonoBehaviour
         depthToColorTransform.m32 = 0f;
         depthToColorTransform.m33 = 1f;
 
-        Debug.Log($"Texture2D dimension: {megaTexture.width}x{megaTexture.height}");
-
-        // Initialize VideoPlayer and RenderTexture
-        videoRenderTexture = new RenderTexture(megaframe_width, megaframe_height, 0);
-        videoPlayer.renderMode = VideoRenderMode.RenderTexture;
-        videoPlayer.targetTexture = videoRenderTexture;
-        videoPlayer.Play();
+        //Debug.Log($"Texture2D dimension: {megaTexture.width}x{megaTexture.height}");
 
         // Create new textures
+        megaTexture = new Texture2D(megaframe_width, megaframe_height, TextureFormat.RGBAFloat, false);
         colorTexture = new Texture2D(megaframe_width, color_height, TextureFormat.RGBAFloat, false);
         depthTexture = new Texture2D(megaframe_width, depth_height, TextureFormat.RGBAFloat, false);
 
-        heatmapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+
+        // Initialize VideoPlayer and RenderTexture
+        //videoRenderTexture = new RenderTexture(megaframe_width, megaframe_height, 0);
+        //videoRenderTexture.enableRandomWrite = true; // Allows shaders to write to it if necessary
+        //videoRenderTexture.Create();
+        //videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+        //videoPlayer.targetTexture = videoRenderTexture;
+        //videoPlayer.Play();
+
+        //heatmapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
         /*
         // Copy pixels for the first texture (1280x720)
         Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
@@ -158,10 +162,10 @@ public class PointCloudGenerator : MonoBehaviour
         depthToPointCloudShader.SetMatrix("depthToColorTransform", depthToColorTransform);
 
         
-        depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
+        //depthToPointCloudShader.Dispatch(kernelIndex, Mathf.CeilToInt(depth_width / 8.0f), Mathf.CeilToInt(depth_height / 8.0f), 1);
 
-        vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
-        vfxGraph.SetGraphicsBuffer("ColorBuffer", colorBuffer);
+        //vfxGraph.SetGraphicsBuffer("PointBuffer", pointCloudBuffer);
+        //vfxGraph.SetGraphicsBuffer("ColorBuffer", colorBuffer);
 
         lowDepthBuffer.GetData(lowDepthData);
         highDepthBuffer.GetData(highDepthData);
@@ -180,10 +184,9 @@ public class PointCloudGenerator : MonoBehaviour
         Debug.Log("Video player is called:" + count);
 
         // Update textures from video
-        
+
         // Copy pixels for the first texture (1280x720)
         /*
-        megaTexture = videoRenderTexture;
         Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
         colorTexture.SetPixels(pixels1);
         colorTexture.Apply();
@@ -193,27 +196,38 @@ public class PointCloudGenerator : MonoBehaviour
         depthTexture.SetPixels(pixels2);
         depthTexture.Apply();
 
-        Debug.Log("Saving png files.");
-        byte[] bytes = depthTexture.EncodeToPNG();
-        string filename = "Assets/CapturedFrames/2.png";
-        File.WriteAllBytes(filename, bytes);
-        
-        */
-
-        
-        RenderTexture.active = videoRenderTexture;
-        colorTexture.ReadPixels(new Rect(0, depth_height, megaframe_width, megaframe_height - depth_height), 0, 0);
-        colorTexture.Apply();
-        depthTexture.ReadPixels(new Rect(0, 0, megaframe_width, depth_height), 0, 0);
-        depthTexture.Apply();
-        RenderTexture.active = null;
-
         Debug.Log("Saving png files:" + count.ToString());
-        byte[] bytes = colorTexture.EncodeToPNG();
+        byte[] bytes = depthTexture.EncodeToPNG();
         string filename = "Assets/CapturedFrames/" + count.ToString() + ".png";
         File.WriteAllBytes(filename, bytes);
-        
-        
+        */
+
+        RenderTexture.active = videoRenderTexture;
+        megaTexture.ReadPixels(new Rect(0, 0, megaframe_width, megaframe_height), 0, 0);
+        megaTexture.Apply();
+        RenderTexture.active = null;
+
+        Color[] pixels1 = megaTexture.GetPixels(0, depth_height, megaframe_width, megaframe_height - depth_height);
+        colorTexture.SetPixels(pixels1);
+        colorTexture.Apply();
+
+        // Copy pixels for the second texture (1280x576)
+        Color[] pixels2 = megaTexture.GetPixels(0, 0, megaframe_width, depth_height);
+        depthTexture.SetPixels(pixels2);
+        depthTexture.Apply();
+        /*
+        colorTexture.ReadPixels(new Rect(0, 0, megaframe_width, megaframe_height - depth_height), 0, 0);
+        colorTexture.Apply();
+        depthTexture.ReadPixels(new Rect(0, color_height, megaframe_width, depth_height), 0, 0);
+        depthTexture.Apply();
+        */
+
+        Debug.Log("Saving png files:" + count.ToString());
+        byte[] bytes = megaTexture.EncodeToPNG();
+        string filename = "Assets/CapturedFrames/" + count.ToString() + ".png";
+        File.WriteAllBytes(filename, bytes);
+
+
         depthToPointCloudShader.SetTexture(kernelIndex, "colorTexture", colorTexture);
         depthToPointCloudShader.SetTexture(kernelIndex, "depthTexture", depthTexture);
         // Dispatch the compute shader
@@ -230,6 +244,7 @@ public class PointCloudGenerator : MonoBehaviour
         //OriginalMap();
         SaveToCSV();
         //UpdateHeatmap();
+
 
     }
 
